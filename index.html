@@ -34,15 +34,17 @@
             <label class="full-width">보고일 (복명서)<input type="date" id="reportDate" /></label>
 
             <h3 class="section-title">출장자 목록</h3>
+            <p class="hint">일비·식비는 2026년 센터 여비 지급 기준에 따라 출장자별 관내/관외·이동수단·출장시간을 기준으로 자동 계산됩니다.</p>
             <div id="travelerList" class="traveler-input-list"></div>
             <button type="button" id="addTravelerBtn" class="secondary">+ 출장자 추가</button>
 
+            <h3 class="section-title">예상 여비 계산 (자동)</h3>
+            <div id="costBreakdown" class="summary-grid"></div>
+
             <div class="form-grid two-col" style="margin-top:20px">
               <label>이동수단 및 기타<input type="text" id="etcTransport" value="센터 차량" /></label>
-              <label>일비 단가 (1인당, 원)<input type="number" id="dailyRate" value="10000" min="0" /></label>
-              <label>교통비(원)<input type="number" id="transportCost" value="0" min="0" /></label>
+              <label>교통비 실비(원)<input type="number" id="transportCost" value="0" min="0" placeholder="관외 실비(영수증 첨부)" /></label>
               <label>숙박비(원)<input type="number" id="lodgingCost" value="0" min="0" /></label>
-              <label>식비 실비지급(원)<input type="number" id="mealCost" value="0" min="0" /></label>
             </div>
 
             <label class="full-width">출장 내용 및 결과 (복명서용)<textarea id="reportContent" rows="4"></textarea></label>

@@ -22,15 +22,48 @@ function formatDateDot(dateStr) {
   return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}.`;
 }
 
-function formatDuration(startStr, endStr) {
-  if (!startStr || !endStr) return '-';
+function durationHours(startStr, endStr) {
+  if (!startStr || !endStr) return 0;
   const [sh, sm] = startStr.split(':').map(Number);
   const [eh, em] = endStr.split(':').map(Number);
   const diff = (eh * 60 + em) - (sh * 60 + sm);
-  if (Number.isNaN(diff) || diff < 0) return '-';
-  const h = Math.floor(diff / 60);
-  const m = diff % 60;
+  return diff > 0 ? diff / 60 : 0;
+}
+
+function formatDuration(startStr, endStr) {
+  const hours = durationHours(startStr, endStr);
+  if (!startStr || !endStr || hours <= 0) return '-';
+  const totalMin = Math.round(hours * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
   return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+// 2026년 센터 여비 지급 기준: 관내(화성시)/관외 × 이동수단 × 출장시간
+function calcTravelerCost(scope, vehicle, hours) {
+  if (scope === '관내') {
+    if (vehicle === '관용차량') {
+      return { allowance: hours >= 4 ? 10000 : 0, meal: 0 };
+    }
+    return { allowance: hours >= 4 ? 20000 : 10000, meal: 0 }; // 자차 이용
+  }
+  const days = Math.max(1, Math.ceil(hours / 24)); // 관외
+  const allowance = vehicle === '관용차량' ? 12500 * days : 25000 * days;
+  return { allowance, meal: 25000 * days };
+}
+
+const SCOPE_VEHICLE_OPTIONS = {
+  관내: ['관용차량', '자차 이용'],
+  관외: ['관용차량', '자차 이용', '대중교통'],
+};
+
+function updateVehicleOptions(row, preferredValue) {
+  const scope = row.querySelector('.t-scope').value;
+  const vehicleSelect = row.querySelector('.t-vehicle');
+  const current = preferredValue || vehicleSelect.value;
+  const options = SCOPE_VEHICLE_OPTIONS[scope] || SCOPE_VEHICLE_OPTIONS['관내'];
+  vehicleSelect.innerHTML = options.map((o) => `<option value="${o}">${o}</option>`).join('');
+  vehicleSelect.value = options.includes(current) ? current : options[0];
 }
 
 function formatCurrency(value) {
@@ -55,7 +88,13 @@ function createTravelerRow(data = {}) {
     <label>날짜<input type="date" class="t-date" /></label>
     <label>시작시간<input type="time" class="t-start" /></label>
     <label>종료시간<input type="time" class="t-end" /></label>
-    <label class="checkbox-inline"><input type="checkbox" class="t-vehicle" /> 관차사용</label>
+    <label>출장구분
+      <select class="t-scope">
+        <option value="관내">관내 출장(화성시)</option>
+        <option value="관외">관외 출장</option>
+      </select>
+    </label>
+    <label>이동수단<select class="t-vehicle"></select></label>
   `;
 
   row.querySelector('.t-position').value = data.position || '';
@@ -65,7 +104,8 @@ function createTravelerRow(data = {}) {
   row.querySelector('.t-date').value = data.date || toDateInputValue(new Date());
   row.querySelector('.t-start').value = data.start || '09:00';
   row.querySelector('.t-end').value = data.end || '18:00';
-  row.querySelector('.t-vehicle').checked = !!data.vehicle;
+  row.querySelector('.t-scope').value = data.scope || '관내';
+  updateVehicleOptions(row, data.vehicle);
 
   row.querySelector('.remove-row').addEventListener('click', () => {
     if (travelerList.children.length <= 1) return;
@@ -73,7 +113,13 @@ function createTravelerRow(data = {}) {
     fillPreview();
   });
 
-  row.querySelectorAll('input').forEach((el) => {
+  row.querySelector('.t-scope').addEventListener('change', () => {
+    updateVehicleOptions(row);
+    fillPreview();
+  });
+
+  row.querySelectorAll('input, select').forEach((el) => {
+    if (el.classList.contains('t-scope')) return; // wired separately above
     const evt = (el.type === 'text') ? 'input' : 'change';
     el.addEventListener(evt, fillPreview);
   });
@@ -82,16 +128,28 @@ function createTravelerRow(data = {}) {
 }
 
 function getTravelers() {
-  return Array.from(travelerList.querySelectorAll('.traveler-row')).map((row) => ({
-    position: row.querySelector('.t-position').value || '-',
-    name: row.querySelector('.t-name').value || '-',
-    purpose: row.querySelector('.t-purpose').value || '-',
-    destination: row.querySelector('.t-destination').value || '-',
-    date: row.querySelector('.t-date').value,
-    start: row.querySelector('.t-start').value,
-    end: row.querySelector('.t-end').value,
-    vehicle: row.querySelector('.t-vehicle').checked,
-  }));
+  return Array.from(travelerList.querySelectorAll('.traveler-row')).map((row) => {
+    const start = row.querySelector('.t-start').value;
+    const end = row.querySelector('.t-end').value;
+    const scope = row.querySelector('.t-scope').value;
+    const vehicle = row.querySelector('.t-vehicle').value;
+    const hours = durationHours(start, end);
+    const { allowance, meal } = calcTravelerCost(scope, vehicle, hours);
+    return {
+      position: row.querySelector('.t-position').value || '-',
+      name: row.querySelector('.t-name').value || '-',
+      purpose: row.querySelector('.t-purpose').value || '-',
+      destination: row.querySelector('.t-destination').value || '-',
+      date: row.querySelector('.t-date').value,
+      start,
+      end,
+      scope,
+      vehicle,
+      hours,
+      allowance,
+      meal,
+    };
+  });
 }
 
 function buildTravelerRowsHtml(travelers) {
@@ -104,7 +162,7 @@ function buildTravelerRowsHtml(travelers) {
       <td>${escapeHtml(t.destination)}</td>
       <td>${formatDateDot(t.date)} ${escapeHtml(t.start || '')}-${escapeHtml(t.end || '')}</td>
       <td>${formatDuration(t.start, t.end)}</td>
-      <td>${t.vehicle ? '○' : ''}</td>
+      <td>${t.vehicle === '관용차량' ? '○' : ''}</td>
       <td></td>
     </tr>`).join('');
   const blankRow = `<tr class="filler-row"><td colspan="${cols}">- 이하 여백 -</td></tr>`;
@@ -115,23 +173,37 @@ function buildTravelerRowsHtml(travelers) {
   return dataRows + blankRow + emptyRows;
 }
 
+function renderCostBreakdown(travelers, totalAllowance, totalMeal) {
+  const el = document.getElementById('costBreakdown');
+  const cards = travelers.map((t) => `
+    <div class="summary-card">
+      <span>${escapeHtml(t.name)} (${t.scope} · ${t.vehicle})</span>
+      <strong>${formatCurrency(t.allowance + t.meal)}</strong>
+    </div>`).join('');
+  el.innerHTML = `${cards}
+    <div class="summary-card accent">
+      <span>합계 (일비 ${formatCurrency(totalAllowance)} + 식비 ${formatCurrency(totalMeal)})</span>
+      <strong>${formatCurrency(totalAllowance + totalMeal)}</strong>
+    </div>`;
+}
+
 function fillPreview() {
   const travelers = getTravelers();
   const requestDate = document.getElementById('requestDate').value;
   const reportDate = document.getElementById('reportDate').value;
   const helper = document.getElementById('helper').value || '-';
   const etcTransport = document.getElementById('etcTransport').value || '-';
-  const dailyRate = Number(document.getElementById('dailyRate').value) || 0;
   const transportCost = Number(document.getElementById('transportCost').value) || 0;
   const lodgingCost = Number(document.getElementById('lodgingCost').value) || 0;
-  const mealCost = Number(document.getElementById('mealCost').value) || 0;
   const reportContent = document.getElementById('reportContent').value || '-';
 
+  const totalAllowance = travelers.reduce((sum, t) => sum + t.allowance, 0);
+  const totalMeal = travelers.reduce((sum, t) => sum + t.meal, 0);
+  renderCostBreakdown(travelers, totalAllowance, totalMeal);
+
   const travelerRowsHtml = buildTravelerRowsHtml(travelers);
-  const dailyTotal = dailyRate * travelers.length;
-  const dailyAllowanceText = dailyTotal > 0
-    ? `${formatCurrency(dailyRate)} * ${travelers.length}명 = ${formatCurrency(dailyTotal)}`
-    : '-';
+  const dailyAllowanceText = totalAllowance > 0 ? formatCurrency(totalAllowance) : '-';
+  const mealText = totalMeal > 0 ? formatCurrency(totalMeal) : '-';
 
   document.getElementById('appDate').textContent = formatDateDot(requestDate);
   document.getElementById('appHelper').textContent = helper;
@@ -139,7 +211,7 @@ function fillPreview() {
   document.getElementById('appTransportPreview').textContent = etcTransport;
   document.getElementById('appTransportCostPreview').textContent = transportCost > 0 ? formatCurrency(transportCost) : '-';
   document.getElementById('appLodgingCostPreview').textContent = lodgingCost > 0 ? formatCurrency(lodgingCost) : '-';
-  document.getElementById('appMealCostPreview').textContent = mealCost > 0 ? formatCurrency(mealCost) : '-';
+  document.getElementById('appMealCostPreview').textContent = mealText;
   document.getElementById('appDailyAllowancePreview').textContent = dailyAllowanceText;
 
   document.getElementById('repDate').textContent = formatDateDot(reportDate || requestDate);
@@ -148,7 +220,7 @@ function fillPreview() {
   document.getElementById('repTransportPreview').textContent = etcTransport;
   document.getElementById('repTransportCostPreview').textContent = transportCost > 0 ? formatCurrency(transportCost) : '-';
   document.getElementById('repLodgingCostPreview').textContent = lodgingCost > 0 ? formatCurrency(lodgingCost) : '-';
-  document.getElementById('repMealCostPreview').textContent = mealCost > 0 ? formatCurrency(mealCost) : '-';
+  document.getElementById('repMealCostPreview').textContent = mealText;
   document.getElementById('repDailyAllowancePreview').textContent = dailyAllowanceText;
   document.getElementById('repContentPreview').textContent = reportContent;
 }
@@ -179,10 +251,8 @@ function resetForm() {
   document.getElementById('reportDate').value = '';
   document.getElementById('helper').value = '';
   document.getElementById('etcTransport').value = '센터 차량';
-  document.getElementById('dailyRate').value = 10000;
   document.getElementById('transportCost').value = 0;
   document.getElementById('lodgingCost').value = 0;
-  document.getElementById('mealCost').value = 0;
   document.getElementById('reportContent').value = '';
   travelerList.innerHTML = '';
   travelerList.appendChild(createTravelerRow());
@@ -201,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fillPreview();
   });
 
-  ['requestDate', 'reportDate', 'helper', 'etcTransport', 'dailyRate', 'transportCost', 'lodgingCost', 'mealCost', 'reportContent']
+  ['requestDate', 'reportDate', 'helper', 'etcTransport', 'transportCost', 'lodgingCost', 'reportContent']
     .forEach((id) => {
       const el = document.getElementById(id);
       const evt = (el.tagName === 'TEXTAREA' || el.type === 'text') ? 'input' : 'change';

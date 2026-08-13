@@ -374,6 +374,13 @@ footer { margin-top:12px; color:#666 }
   font-size: 1rem;
 }
 
+.hint {
+  margin: -4px 0 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
 .traveler-input-list {
   display: flex;
   flex-direction: column;
@@ -394,17 +401,6 @@ footer { margin-top:12px; color:#666 }
 .traveler-row label {
   font-size: 0.85rem;
   gap: 4px;
-}
-
-.checkbox-inline {
-  flex-direction: row !important;
-  align-items: center;
-  gap: 6px !important;
-  align-self: end;
-}
-
-.checkbox-inline input {
-  width: auto;
 }
 
 .remove-row {
