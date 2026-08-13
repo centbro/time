@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>출장신청서 / 출장복명서 샘플</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">센터 양식 미리보기</p>
+          <h1>출장신청서 & 출장복명서</h1>
+        </div>
+        <div class="controls">
+          <button id="show-application" class="secondary">신청서 미리보기</button>
+          <button id="show-report" class="secondary">복명서 미리보기</button>
+          <button id="printBtn" class="secondary">인쇄</button>
+          <button id="generatePdf" class="primary">PDF 생성</button>
+          <label class="file-label">서명 업로드<input type="file" id="sigInput" accept="image/*"></label>
+          <label class="file-label">사진 업로드<input type="file" id="photosInput" accept="image/*" multiple></label>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel">
+          <h2>출장 정보 입력</h2>
+          <form id="tripForm">
+            <div class="form-grid two-col">
+              <label>성명<input type="text" id="name" value="홍길동" required /></label>
+              <label>소속<input type="text" id="department" value="기획팀" required /></label>
+              <label>직급<input type="text" id="position" value="대리" required /></label>
+              <label>출장 구분
+                <select id="tripScope">
+                  <option value="관내">관내 출장 (화성시)</option>
+                  <option value="관외">관외 출장</option>
+                </select>
+              </label>
+              <label>이동수단
+                <select id="vehicleType">
+                  <option value="관용차">관용 차량</option>
+                  <option value="자차">개인 차량(자차)</option>
+                  <option value="대중교통">대중교통</option>
+                </select>
+              </label>
+              <label>출장지<input type="text" id="destination" value="서울 본사" required /></label>
+              <label>출장 시작일시<input type="datetime-local" id="startAt" required /></label>
+              <label>출장 종료일시<input type="datetime-local" id="endAt" required /></label>
+              <label>출장 목적<input type="text" id="purpose" value="고객 미팅 및 협업" required /></label>
+              <label>교통수단<input type="text" id="transport" value="KTX" required /></label>
+              <label>예상 경비(원)<input type="number" id="budget" value="450000" min="0" /></label>
+              <label>숙박 여부<select id="lodging"><option value="필요">필요</option><option value="불필요">불필요</option></select></label>
+            </div>
+
+            <label class="full-width">비고<textarea id="notes" rows="4">업무 일정 조율 및 현장 검토 예정</textarea></label>
+
+            <label>실비(영수증 합계, 원 단위)
+              <input type="number" id="receiptAmount" value="0" min="0" />
+            </label>
+            <label style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="receiptProvided" /> 영수증 첨부 여부 (주차/통행료 포함 시 체크)
+            </label>
+            <label>주차비(원)<input type="number" id="parkingAmount" value="0" min="0" /></label>
+            <label>통행료(원)<input type="number" id="tollAmount" value="0" min="0" /></label>
+
+            <div class="button-row">
+              <button type="submit" class="primary">미리보기 갱신</button>
+              <button type="button" id="resetBtn" class="secondary">초기화</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel form-panel">
+          <h2>센터 양식 미리보기</h2>
+          <div id="previewWrap">
+            <div id="previewApplication" class="application-form">
+              <div class="application-header">
+                <div>
+                  <p class="small-label">기관명</p>
+                  <h3>한마음센터</h3>
+                </div>
+                <div>
+                  <p class="small-label">출장 신청서</p>
+                  <h3>출장신청서</h3>
+                </div>
+                <div class="approval-block">
+                  <div>결재</div>
+                  <div class="approval-cells"><div>총괄팀장</div><div>센터장</div></div>
+                </div>
+              </div>
+
+              <table>
+                <tbody>
+                  <tr><th>신청일</th><td id="appDate">-</td><th>협조자</th><td id="appHelper">-</td></tr>
+                  <tr><th>직책</th><td id="appPositionPreview">-</td><th>성명</th><td id="appNamePreview">-</td></tr>
+                  <tr><th>출장목적</th><td colspan="3" id="appPurposePreview">-</td></tr>
+                  <tr><th>출장지</th><td id="appDestinationPreview">-</td><th>출장기간</th><td id="appPeriodPreview">-</td></tr>
+                  <tr><th>출장시간</th><td id="appTimePreview">-</td><th>관차사용</th><td id="appVehiclePreview">-</td></tr>
+                </tbody>
+              </table>
+
+              <div class="content-area">
+                <strong>이동수단 및 기타:</strong> <span id="appTransportPreview">-</span>
+              </div>
+
+              <div class="cost-summary">
+                <div>교통비: <span id="appTransportCostPreview">-</span></div>
+                <div>식비: <span id="appMealCostPreview">-</span></div>
+                <div>일비: <span id="appDailyAllowancePreview">-</span></div>
+              </div>
+
+              <div class="sign-boxes">
+                <div>신청자: <span id="signatureUser">-</span></div>
+                <div>팀장: ____________</div>
+                <div>경리: ____________</div>
+              </div>
+            </div>
+
+            <div id="previewReport" class="application-form hidden">
+              <div class="application-header">
+                <div>
+                  <p class="small-label">기관명</p>
+                  <h3>한마음센터</h3>
+                </div>
+                <div>
+                  <p class="small-label">출장 복명서</p>
+                  <h3>출장복명서</h3>
+                </div>
+                <div class="approval-block">
+                  <div>결재</div>
+                  <div class="approval-cells"><div>총괄팀장</div><div>센터장</div></div>
+                </div>
+              </div>
+
+              <table>
+                <tbody>
+                  <tr><th>보고일</th><td id="repDate">-</td><th>협조자</th><td id="repHelper">-</td></tr>
+                  <tr><th>직책</th><td id="repPositionPreview">-</td><th>성명</th><td id="repNamePreview">-</td></tr>
+                  <tr><th>출장목적</th><td colspan="3" id="repPurposePreview">-</td></tr>
+                  <tr><th>출장지</th><td id="repDestinationPreview">-</td><th>출장기간</th><td id="repPeriodPreview">-</td></tr>
+                  <tr><th>출장시간</th><td id="repTimePreview">-</td><th>관차사용</th><td id="repVehiclePreview">-</td></tr>
+                </tbody>
+              </table>
+
+              <div class="content-area">
+                <strong>내 용</strong>
+                <ul id="repDetailsPreview"></ul>
+              </div>
+
+              <div class="sign-boxes">
+                <div>작성자: <span id="repAuthorPreview">-</span></div>
+                <div>확인: ____________</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
