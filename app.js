@@ -46,17 +46,22 @@ function formatDuration(startStr, endStr) {
   return `${h}:${String(m).padStart(2, '0')}`;
 }
 
-// 2026년 센터 여비 지급 기준: 관내(화성시)/관외 × 이동수단 × 출장시간
-function calcTravelerCost(scope, vehicle, hours) {
+// 2026년 센터 여비 지급 기준: 관내(화성시)/관외 × 이동수단 × 출장시간 (일비만 자동계산, 식비는 영수증 실비라 직접 입력)
+function calcTravelerAllowance(scope, vehicle, hours) {
   if (scope === '관내') {
-    if (vehicle === '관용차량') {
-      return { allowance: hours >= 4 ? 10000 : 0, meal: 0 };
-    }
-    return { allowance: hours >= 4 ? 20000 : 10000, meal: 0 }; // 자차 이용
+    if (vehicle === '관용차량') return hours >= 4 ? 10000 : 0;
+    return hours >= 4 ? 20000 : 10000; // 자차 이용
   }
   const days = Math.max(1, Math.ceil(hours / 24)); // 관외
-  const allowance = vehicle === '관용차량' ? 12500 * days : 25000 * days;
-  return { allowance, meal: 25000 * days };
+  return vehicle === '관용차량' ? 12500 * days : 25000 * days;
+}
+
+const MEAL_COST_CAP = 25000;
+
+function clampMealCost(input) {
+  const value = Number(input.value) || 0;
+  if (value > MEAL_COST_CAP) input.value = MEAL_COST_CAP;
+  if (value < 0) input.value = 0;
 }
 
 const SCOPE_VEHICLE_OPTIONS = {
@@ -141,7 +146,7 @@ function getTravelers() {
     const scope = row.querySelector('.t-scope').value;
     const vehicle = row.querySelector('.t-vehicle').value;
     const hours = durationHours(start, end);
-    const { allowance, meal } = calcTravelerCost(scope, vehicle, hours);
+    const allowance = calcTravelerAllowance(scope, vehicle, hours);
     return {
       position: row.querySelector('.t-position').value || '-',
       name: row.querySelector('.t-name').value || '-',
@@ -154,7 +159,6 @@ function getTravelers() {
       vehicle,
       hours,
       allowance,
-      meal,
     };
   });
 }
@@ -205,17 +209,17 @@ function createWorklogRow() {
   return row;
 }
 
-function renderCostBreakdown(travelers, totalAllowance, totalMeal) {
+function renderCostBreakdown(travelers, totalAllowance) {
   const el = document.getElementById('costBreakdown');
   const cards = travelers.map((t) => `
     <div class="summary-card">
       <span>${escapeHtml(t.name)} (${t.scope} · ${t.vehicle})</span>
-      <strong>${formatCurrency(t.allowance + t.meal)}</strong>
+      <strong>${formatCurrency(t.allowance)}</strong>
     </div>`).join('');
   el.innerHTML = `${cards}
     <div class="summary-card accent">
-      <span>합계 (일비 ${formatCurrency(totalAllowance)} + 식비 ${formatCurrency(totalMeal)})</span>
-      <strong>${formatCurrency(totalAllowance + totalMeal)}</strong>
+      <span>일비 합계</span>
+      <strong>${formatCurrency(totalAllowance)}</strong>
     </div>`;
 }
 
@@ -226,15 +230,15 @@ function fillPreview() {
   const etcTransport = document.getElementById('etcTransport').value || '-';
   const transportCost = Number(document.getElementById('transportCost').value) || 0;
   const lodgingCost = Number(document.getElementById('lodgingCost').value) || 0;
+  const mealCost = Math.min(MEAL_COST_CAP, Number(document.getElementById('mealCost').value) || 0);
   const reportContent = document.getElementById('reportContent').value || '-';
 
   const totalAllowance = travelers.reduce((sum, t) => sum + t.allowance, 0);
-  const totalMeal = travelers.reduce((sum, t) => sum + t.meal, 0);
-  renderCostBreakdown(travelers, totalAllowance, totalMeal);
+  renderCostBreakdown(travelers, totalAllowance);
 
   const travelerRowsHtml = buildTravelerRowsHtml(travelers);
   const dailyAllowanceText = totalAllowance > 0 ? formatCurrency(totalAllowance) : '-';
-  const mealText = totalMeal > 0 ? formatCurrency(totalMeal) : '-';
+  const mealText = mealCost > 0 ? formatCurrency(mealCost) : '-';
 
   document.getElementById('appDate').textContent = formatDateDot(requestDate);
   document.getElementById('appTravelerRows').innerHTML = travelerRowsHtml;
@@ -282,6 +286,7 @@ function resetForm() {
   document.getElementById('etcTransport').value = '센터 차량';
   document.getElementById('transportCost').value = 0;
   document.getElementById('lodgingCost').value = 0;
+  document.getElementById('mealCost').value = 0;
   document.getElementById('reportContent').value = '';
   travelerList.innerHTML = '';
   travelerList.appendChild(createTravelerRow());
@@ -318,12 +323,15 @@ document.addEventListener('DOMContentLoaded', () => {
     fillPreview();
   });
 
-  ['requestDate', 'reportDate', 'etcTransport', 'transportCost', 'lodgingCost', 'reportContent']
+  ['requestDate', 'reportDate', 'etcTransport', 'transportCost', 'lodgingCost', 'mealCost', 'reportContent']
     .forEach((id) => {
       const el = document.getElementById(id);
       const evt = (el.tagName === 'TEXTAREA' || el.type === 'text') ? 'input' : 'change';
       el.addEventListener(evt, fillPreview);
     });
+
+  const mealCostInput = document.getElementById('mealCost');
+  mealCostInput.addEventListener('input', () => { clampMealCost(mealCostInput); fillPreview(); });
 
   function showPanel(activeId) {
     PREVIEW_PANEL_IDS.forEach((id) => {
