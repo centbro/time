@@ -4,7 +4,9 @@ const resetBtn = document.getElementById('resetBtn');
 const printBtn = document.getElementById('printBtn');
 const showAppBtn = document.getElementById('show-application');
 const showRepBtn = document.getElementById('show-report');
+const showWorklogBtn = document.getElementById('show-worklog');
 const generatePdfBtn = document.getElementById('generatePdf');
+const PREVIEW_PANEL_IDS = ['previewApplication', 'previewReport', 'previewWorklog'];
 const travelerList = document.getElementById('travelerList');
 const addTravelerBtn = document.getElementById('addTravelerBtn');
 
@@ -173,6 +175,18 @@ function buildTravelerRowsHtml(travelers) {
   return dataRows + blankRow + emptyRows;
 }
 
+function renderWorklog(travelers) {
+  const rows = travelers.map((t) => `
+    <tr>
+      <td>${formatDateDot(t.date)}</td>
+      <td>${escapeHtml(t.name)}</td>
+      <td>${escapeHtml(t.start || '-')}</td>
+      <td>${escapeHtml(t.end || '-')}</td>
+      <td>${formatDuration(t.start, t.end)}</td>
+    </tr>`).join('');
+  document.getElementById('worklogRows').innerHTML = rows;
+}
+
 function renderCostBreakdown(travelers, totalAllowance, totalMeal) {
   const el = document.getElementById('costBreakdown');
   const cards = travelers.map((t) => `
@@ -191,7 +205,6 @@ function fillPreview() {
   const travelers = getTravelers();
   const requestDate = document.getElementById('requestDate').value;
   const reportDate = document.getElementById('reportDate').value;
-  const helper = document.getElementById('helper').value || '-';
   const etcTransport = document.getElementById('etcTransport').value || '-';
   const transportCost = Number(document.getElementById('transportCost').value) || 0;
   const lodgingCost = Number(document.getElementById('lodgingCost').value) || 0;
@@ -200,13 +213,13 @@ function fillPreview() {
   const totalAllowance = travelers.reduce((sum, t) => sum + t.allowance, 0);
   const totalMeal = travelers.reduce((sum, t) => sum + t.meal, 0);
   renderCostBreakdown(travelers, totalAllowance, totalMeal);
+  renderWorklog(travelers);
 
   const travelerRowsHtml = buildTravelerRowsHtml(travelers);
   const dailyAllowanceText = totalAllowance > 0 ? formatCurrency(totalAllowance) : '-';
   const mealText = totalMeal > 0 ? formatCurrency(totalMeal) : '-';
 
   document.getElementById('appDate').textContent = formatDateDot(requestDate);
-  document.getElementById('appHelper').textContent = helper;
   document.getElementById('appTravelerRows').innerHTML = travelerRowsHtml;
   document.getElementById('appTransportPreview').textContent = etcTransport;
   document.getElementById('appTransportCostPreview').textContent = transportCost > 0 ? formatCurrency(transportCost) : '-';
@@ -215,7 +228,6 @@ function fillPreview() {
   document.getElementById('appDailyAllowancePreview').textContent = dailyAllowanceText;
 
   document.getElementById('repDate').textContent = formatDateDot(reportDate || requestDate);
-  document.getElementById('repHelper').textContent = helper;
   document.getElementById('repTravelerRows').innerHTML = travelerRowsHtml;
   document.getElementById('repTransportPreview').textContent = etcTransport;
   document.getElementById('repTransportCostPreview').textContent = transportCost > 0 ? formatCurrency(transportCost) : '-';
@@ -226,9 +238,10 @@ function fillPreview() {
 }
 
 async function generatePdfForVisiblePreview() {
-  const previewApp = document.getElementById('previewApplication');
-  const previewRep = document.getElementById('previewReport');
-  const target = previewApp.classList.contains('hidden') ? previewRep : previewApp;
+  const target = PREVIEW_PANEL_IDS
+    .map((id) => document.getElementById(id))
+    .find((el) => !el.classList.contains('hidden'));
+  if (!target) return;
 
   try {
     const canvas = await html2canvas(target, { scale: 2, useCORS: true });
@@ -249,7 +262,6 @@ async function generatePdfForVisiblePreview() {
 function resetForm() {
   document.getElementById('requestDate').value = toDateInputValue(new Date());
   document.getElementById('reportDate').value = '';
-  document.getElementById('helper').value = '';
   document.getElementById('etcTransport').value = '센터 차량';
   document.getElementById('transportCost').value = 0;
   document.getElementById('lodgingCost').value = 0;
@@ -271,15 +283,21 @@ document.addEventListener('DOMContentLoaded', () => {
     fillPreview();
   });
 
-  ['requestDate', 'reportDate', 'helper', 'etcTransport', 'transportCost', 'lodgingCost', 'reportContent']
+  ['requestDate', 'reportDate', 'etcTransport', 'transportCost', 'lodgingCost', 'reportContent']
     .forEach((id) => {
       const el = document.getElementById(id);
       const evt = (el.tagName === 'TEXTAREA' || el.type === 'text') ? 'input' : 'change';
       el.addEventListener(evt, fillPreview);
     });
 
-  if (showAppBtn) showAppBtn.addEventListener('click', () => { document.getElementById('previewApplication').classList.remove('hidden'); document.getElementById('previewReport').classList.add('hidden'); });
-  if (showRepBtn) showRepBtn.addEventListener('click', () => { document.getElementById('previewReport').classList.remove('hidden'); document.getElementById('previewApplication').classList.add('hidden'); });
+  function showPanel(activeId) {
+    PREVIEW_PANEL_IDS.forEach((id) => {
+      document.getElementById(id).classList.toggle('hidden', id !== activeId);
+    });
+  }
+  if (showAppBtn) showAppBtn.addEventListener('click', () => showPanel('previewApplication'));
+  if (showRepBtn) showRepBtn.addEventListener('click', () => showPanel('previewReport'));
+  if (showWorklogBtn) showWorklogBtn.addEventListener('click', () => showPanel('previewWorklog'));
   if (generatePdfBtn) generatePdfBtn.addEventListener('click', () => generatePdfForVisiblePreview());
   if (printBtn) printBtn.addEventListener('click', () => window.print());
 });

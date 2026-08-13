@@ -292,6 +292,18 @@ td {
   margin: 8px 0 0;
 }
 
+/* 근무상황부 */
+.worklog-title {
+  text-align: center;
+  margin: 4px 0 16px;
+}
+
+.worklog-table th,
+.worklog-table td {
+  text-align: center;
+  padding: 10px 8px;
+}
+
 @media (max-width: 800px) {
   .layout {
     grid-template-columns: 1fr;

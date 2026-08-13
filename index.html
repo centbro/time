@@ -18,6 +18,7 @@
         <div class="controls">
           <button id="show-application" class="secondary">신청서 미리보기</button>
           <button id="show-report" class="secondary">복명서 미리보기</button>
+          <button id="show-worklog" class="secondary">근무상황부 미리보기</button>
           <button id="printBtn" class="secondary">인쇄</button>
           <button id="generatePdf" class="primary">PDF 생성</button>
         </div>
@@ -29,9 +30,8 @@
           <form id="tripForm">
             <div class="form-grid two-col">
               <label>신청일<input type="date" id="requestDate" required /></label>
-              <label>협조자<input type="text" id="helper" placeholder="예: 없음" /></label>
+              <label>보고일 (복명서)<input type="date" id="reportDate" /></label>
             </div>
-            <label class="full-width">보고일 (복명서)<input type="date" id="reportDate" /></label>
 
             <h3 class="section-title">출장자 목록</h3>
             <p class="hint">일비·식비는 2026년 센터 여비 지급 기준에 따라 출장자별 관내/관외·이동수단·출장시간을 기준으로 자동 계산됩니다.</p>
@@ -77,7 +77,7 @@
 
               <table class="meta-table">
                 <tbody>
-                  <tr><th>신청일</th><td id="appDate">-</td><th>협조자</th><td id="appHelper">-</td></tr>
+                  <tr><th>신청일</th><td colspan="3" id="appDate">-</td></tr>
                 </tbody>
               </table>
 
@@ -125,7 +125,7 @@
 
               <table class="meta-table">
                 <tbody>
-                  <tr><th>보고일</th><td id="repDate">-</td><th>협조자</th><td id="repHelper">-</td></tr>
+                  <tr><th>보고일</th><td colspan="3" id="repDate">-</td></tr>
                 </tbody>
               </table>
 
@@ -158,6 +158,16 @@
                 <strong>출장 내용 및 결과</strong>
                 <p id="repContentPreview">-</p>
               </div>
+            </div>
+
+            <div id="previewWorklog" class="application-form hidden">
+              <h3 class="spaced-title worklog-title">근 무 상 황 부</h3>
+              <table class="worklog-table">
+                <thead>
+                  <tr><th>날짜</th><th>성명</th><th>출장 나간 시간</th><th>돌아온 시간</th><th>소요시간</th></tr>
+                </thead>
+                <tbody id="worklogRows"></tbody>
+              </table>
             </div>
           </div>
         </section>
