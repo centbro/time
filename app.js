@@ -4,11 +4,16 @@ const resetBtn = document.getElementById('resetBtn');
 const printBtn = document.getElementById('printBtn');
 const showAppBtn = document.getElementById('show-application');
 const showRepBtn = document.getElementById('show-report');
-const showWorklogBtn = document.getElementById('show-worklog');
 const generatePdfBtn = document.getElementById('generatePdf');
-const PREVIEW_PANEL_IDS = ['previewApplication', 'previewReport', 'previewWorklog'];
+const PREVIEW_PANEL_IDS = ['previewApplication', 'previewReport'];
 const travelerList = document.getElementById('travelerList');
 const addTravelerBtn = document.getElementById('addTravelerBtn');
+const tabFormBtn = document.getElementById('tab-form');
+const tabWorklogBtn = document.getElementById('tab-worklog');
+const formView = document.getElementById('formView');
+const worklogView = document.getElementById('worklogView');
+const worklogCalcList = document.getElementById('worklogCalcList');
+const addWorklogRowBtn = document.getElementById('addWorklogRowBtn');
 
 const TRAVELER_TABLE_MIN_ROWS = 8; // 데이터 행 + '이하 여백' 행 + 빈 행을 합쳐 표를 채우는 최소 줄 수
 
@@ -175,16 +180,29 @@ function buildTravelerRowsHtml(travelers) {
   return dataRows + blankRow + emptyRows;
 }
 
-function renderWorklog(travelers) {
-  const rows = travelers.map((t) => `
-    <tr>
-      <td>${formatDateDot(t.date)}</td>
-      <td>${escapeHtml(t.name)}</td>
-      <td>${escapeHtml(t.start || '-')}</td>
-      <td>${escapeHtml(t.end || '-')}</td>
-      <td>${formatDuration(t.start, t.end)}</td>
-    </tr>`).join('');
-  document.getElementById('worklogRows').innerHTML = rows;
+function createWorklogRow() {
+  const row = document.createElement('div');
+  row.className = 'worklog-calc-row';
+  row.innerHTML = `
+    <button type="button" class="remove-row" title="삭제">✕</button>
+    <label>출발 시간<input type="time" class="w-start" /></label>
+    <label>도착 시간<input type="time" class="w-end" /></label>
+    <div class="worklog-result">총 출장 시간<strong class="w-total">-</strong></div>
+  `;
+
+  function updateTotal() {
+    const start = row.querySelector('.w-start').value;
+    const end = row.querySelector('.w-end').value;
+    row.querySelector('.w-total').textContent = formatDuration(start, end);
+  }
+
+  row.querySelectorAll('input[type=time]').forEach((el) => el.addEventListener('change', updateTotal));
+  row.querySelector('.remove-row').addEventListener('click', () => {
+    if (worklogCalcList.children.length <= 1) return;
+    row.remove();
+  });
+
+  return row;
 }
 
 function renderCostBreakdown(travelers, totalAllowance, totalMeal) {
@@ -213,7 +231,6 @@ function fillPreview() {
   const totalAllowance = travelers.reduce((sum, t) => sum + t.allowance, 0);
   const totalMeal = travelers.reduce((sum, t) => sum + t.meal, 0);
   renderCostBreakdown(travelers, totalAllowance, totalMeal);
-  renderWorklog(travelers);
 
   const travelerRowsHtml = buildTravelerRowsHtml(travelers);
   const dailyAllowanceText = totalAllowance > 0 ? formatCurrency(totalAllowance) : '-';
@@ -276,6 +293,24 @@ document.addEventListener('DOMContentLoaded', () => {
   travelerList.appendChild(createTravelerRow());
   fillPreview();
 
+  worklogCalcList.appendChild(createWorklogRow());
+  addWorklogRowBtn.addEventListener('click', () => {
+    worklogCalcList.appendChild(createWorklogRow());
+  });
+
+  tabFormBtn.addEventListener('click', () => {
+    formView.classList.remove('hidden');
+    worklogView.classList.add('hidden');
+    tabFormBtn.className = 'primary tab-btn';
+    tabWorklogBtn.className = 'secondary tab-btn';
+  });
+  tabWorklogBtn.addEventListener('click', () => {
+    worklogView.classList.remove('hidden');
+    formView.classList.add('hidden');
+    tabWorklogBtn.className = 'primary tab-btn';
+    tabFormBtn.className = 'secondary tab-btn';
+  });
+
   form.addEventListener('submit', (e) => { e.preventDefault(); fillPreview(); });
   resetBtn.addEventListener('click', resetForm);
   addTravelerBtn.addEventListener('click', () => {
@@ -297,7 +332,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (showAppBtn) showAppBtn.addEventListener('click', () => showPanel('previewApplication'));
   if (showRepBtn) showRepBtn.addEventListener('click', () => showPanel('previewReport'));
-  if (showWorklogBtn) showWorklogBtn.addEventListener('click', () => showPanel('previewWorklog'));
   if (generatePdfBtn) generatePdfBtn.addEventListener('click', () => generatePdfForVisiblePreview());
   if (printBtn) printBtn.addEventListener('click', () => window.print());
 });

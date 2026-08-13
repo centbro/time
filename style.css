@@ -42,6 +42,10 @@ select {
   margin-bottom: 24px;
 }
 
+.sub-controls {
+  margin-bottom: 20px;
+}
+
 .eyebrow {
   margin: 0 0 8px;
   color: var(--primary);
@@ -292,16 +296,47 @@ td {
   margin: 8px 0 0;
 }
 
-/* 근무상황부 */
-.worklog-title {
-  text-align: center;
-  margin: 4px 0 16px;
+/* 근무상황부: 출장 시간 확인용 간단 계산기 */
+.worklog-calc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.worklog-table th,
-.worklog-table td {
-  text-align: center;
-  padding: 10px 8px;
+.worklog-calc-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 14px;
+  align-items: end;
+  padding: 16px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f9fbff;
+}
+
+.worklog-calc-row label {
+  font-size: 0.85rem;
+  gap: 4px;
+}
+
+.worklog-result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.worklog-result strong {
+  font-size: 1.3rem;
+  color: var(--primary);
+}
+
+@media (max-width: 800px) {
+  .worklog-calc-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 800px) {

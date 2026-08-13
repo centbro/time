@@ -16,13 +16,18 @@
           <h1>출장신청서 & 출장복명서</h1>
         </div>
         <div class="controls">
-          <button id="show-application" class="secondary">신청서 미리보기</button>
-          <button id="show-report" class="secondary">복명서 미리보기</button>
-          <button id="show-worklog" class="secondary">근무상황부 미리보기</button>
-          <button id="printBtn" class="secondary">인쇄</button>
-          <button id="generatePdf" class="primary">PDF 생성</button>
+          <button id="tab-form" class="primary tab-btn">출장신청서 작성</button>
+          <button id="tab-worklog" class="secondary tab-btn">근무상황부 (출장시간 확인)</button>
         </div>
       </header>
+
+      <div id="formView">
+      <div class="controls sub-controls">
+        <button id="show-application" class="secondary">신청서 미리보기</button>
+        <button id="show-report" class="secondary">복명서 미리보기</button>
+        <button id="printBtn" class="secondary">인쇄</button>
+        <button id="generatePdf" class="primary">PDF 생성</button>
+      </div>
 
       <main class="layout">
         <section class="panel">
@@ -159,19 +164,19 @@
                 <p id="repContentPreview">-</p>
               </div>
             </div>
-
-            <div id="previewWorklog" class="application-form hidden">
-              <h3 class="spaced-title worklog-title">근 무 상 황 부</h3>
-              <table class="worklog-table">
-                <thead>
-                  <tr><th>날짜</th><th>성명</th><th>출장 나간 시간</th><th>돌아온 시간</th><th>소요시간</th></tr>
-                </thead>
-                <tbody id="worklogRows"></tbody>
-              </table>
-            </div>
           </div>
         </section>
       </main>
+      </div>
+
+      <div id="worklogView" class="hidden">
+        <section class="panel">
+          <h2>근무상황부 · 출장 시간 확인</h2>
+          <p class="hint">출발 시간과 도착 시간만 입력하면 총 출장 시간이 바로 계산됩니다. 신청서 작성과는 별개의 간단한 확인용 도구입니다.</p>
+          <div id="worklogCalcList" class="worklog-calc-list"></div>
+          <button type="button" id="addWorklogRowBtn" class="secondary">+ 시간 추가</button>
+        </section>
+      </div>
     </div>
 
     <script src="app.js"></script>
