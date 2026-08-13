@@ -1,206 +1,215 @@
-/* Clean preview + PDF generation script */
+/* 센터 양식(출장신청서/출장복명서) 미리보기 + PDF 생성 */
 const form = document.getElementById('tripForm');
-const startInput = document.getElementById('startAt');
-const endInput = document.getElementById('endAt');
 const resetBtn = document.getElementById('resetBtn');
 const printBtn = document.getElementById('printBtn');
 const showAppBtn = document.getElementById('show-application');
 const showRepBtn = document.getElementById('show-report');
 const generatePdfBtn = document.getElementById('generatePdf');
-// Note: signature and photos inputs are intentionally not embedded into the generated PDF per user choice.
+const travelerList = document.getElementById('travelerList');
+const addTravelerBtn = document.getElementById('addTravelerBtn');
 
-function setDefaultTimes() {
-  const now = new Date();
-  const start = new Date(now);
-  const end = new Date(now.getTime() + 2 * 60 * 60 * 1000 + 30 * 60 * 1000);
-  startInput.value = toDateTimeLocal(start);
-  endInput.value = toDateTimeLocal(end);
-}
+const TRAVELER_TABLE_MIN_ROWS = 8; // 데이터 행 + '이하 여백' 행 + 빈 행을 합쳐 표를 채우는 최소 줄 수
 
-function toDateTimeLocal(date) {
+function toDateInputValue(date) {
   const pad = (v) => String(v).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function formatKoreanDate(date) {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '-';
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  return `${y}.${m}.${d} ${hh}:${mm}`;
+function formatDateDot(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return '-';
+  return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}.`;
 }
 
-function fillPreview() {
-  const name = document.getElementById('name').value || '-';
-  const dept = document.getElementById('department').value || '-';
-  const pos = document.getElementById('position').value || '-';
-  const dest = document.getElementById('destination').value || '-';
-  const purpose = document.getElementById('purpose').value || '-';
-  const transport = document.getElementById('transport').value || '-';
-  const budget = Number(document.getElementById('budget').value || 0);
-  const notes = document.getElementById('notes').value || '-';
-  const start = new Date(startInput.value);
-  const end = new Date(endInput.value);
-
-  // calculate costs based on 2026 기준
-  const scope = document.getElementById('tripScope') ? document.getElementById('tripScope').value : '관내';
-  const vehicle = document.getElementById('vehicleType') ? document.getElementById('vehicleType').value : '관용차';
-  const receipt = Number(document.getElementById('receiptAmount') ? document.getElementById('receiptAmount').value : 0) || 0;
-  const receiptProvided = document.getElementById('receiptProvided') ? document.getElementById('receiptProvided').checked : false;
-  const parking = Number(document.getElementById('parkingAmount') ? document.getElementById('parkingAmount').value : 0) || 0;
-  const toll = Number(document.getElementById('tollAmount') ? document.getElementById('tollAmount').value : 0) || 0;
-  const receiptTotalInput = receipt + parking + toll;
-  const costs = calculateCosts(start, end, scope, vehicle, receiptTotalInput, receiptProvided);
-  document.getElementById('appDailyAllowancePreview').textContent = formatCurrency(costs.allowance);
-  document.getElementById('appMealCostPreview').textContent = formatCurrency(costs.meal);
-  document.getElementById('appTransportCostPreview').textContent = formatCurrency(costs.receipt);
-
-  // also show totals on 복명서
-  const repNotes = document.getElementById('repDetailsPreview');
-  // append cost summary to 복명서 details
-  let costSummary = `일비: ${formatCurrency(costs.allowance)} / 식비: ${formatCurrency(costs.meal)} / 합계: ${formatCurrency(costs.total)}`;
-  if(costs.receipt > 0){
-    if(costs.receiptIncluded){
-      costSummary = `일비: ${formatCurrency(costs.allowance)} / 식비: ${formatCurrency(costs.meal)} / 실비(영수증 포함): ${formatCurrency(costs.receipt)} / 합계: ${formatCurrency(costs.total)}`;
-    } else {
-      costSummary = `일비: ${formatCurrency(costs.allowance)} / 식비: ${formatCurrency(costs.meal)} / 실비(영수증 미첨부 - 지급 불포함): ${formatCurrency(costs.receipt)} / 합계(실비 미포함): ${formatCurrency(costs.totalNoReceipt)}`;
-    }
-  }
-  const costLi = document.createElement('li'); costLi.textContent = costSummary; repNotes.appendChild(costLi);
-
-  document.getElementById('appNamePreview').textContent = name;
-  document.getElementById('appPositionPreview').textContent = pos;
-  document.getElementById('appPurposePreview').textContent = purpose;
-  document.getElementById('appDestinationPreview').textContent = dest;
-  document.getElementById('appTransportPreview').textContent = transport;
-  document.getElementById('appDate').textContent = formatKoreanDate(new Date());
-  document.getElementById('appHelper').textContent = dept;
-  document.getElementById('appPeriodPreview').textContent = (isNaN(start.getTime()) || isNaN(end.getTime())) ? '-' : `${formatKoreanDate(start)} ~ ${formatKoreanDate(end)}`;
-  document.getElementById('appTimePreview').textContent = (isNaN(start.getTime()) || isNaN(end.getTime())) ? '-' : `${String(start.getHours()).padStart(2,'0')}:${String(start.getMinutes()).padStart(2,'0')} ~ ${String(end.getHours()).padStart(2,'0')}:${String(end.getMinutes()).padStart(2,'0')}`;
-  document.getElementById('appVehiclePreview').textContent = '-';
-  document.getElementById('appTransportCostPreview').textContent = '-';
-  document.getElementById('appMealCostPreview').textContent = '-';
-  document.getElementById('appDailyAllowancePreview').textContent = '-';
-  document.getElementById('signatureUser').textContent = name;
-
-  // 복명서
-  document.getElementById('repAuthorPreview').textContent = name;
-  document.getElementById('repDate').textContent = formatKoreanDate(new Date());
-  document.getElementById('repNamePreview').textContent = name;
-  document.getElementById('repPositionPreview').textContent = pos;
-  document.getElementById('repPurposePreview').textContent = purpose;
-  document.getElementById('repDestinationPreview').textContent = dest;
-  document.getElementById('repPeriodPreview').textContent = (isNaN(start.getTime()) || isNaN(end.getTime())) ? '-' : `${formatKoreanDate(start)} ~ ${formatKoreanDate(end)}`;
-  document.getElementById('repTimePreview').textContent = document.getElementById('appTimePreview').textContent;
-  const ul = document.getElementById('repDetailsPreview'); ul.innerHTML = '';
-  const detailLi = document.createElement('li'); detailLi.textContent = notes; ul.appendChild(detailLi);
+function formatDuration(startStr, endStr) {
+  if (!startStr || !endStr) return '-';
+  const [sh, sm] = startStr.split(':').map(Number);
+  const [eh, em] = endStr.split(':').map(Number);
+  const diff = (eh * 60 + em) - (sh * 60 + sm);
+  if (Number.isNaN(diff) || diff < 0) return '-';
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
 }
 
-function formatCurrency(value){
+function formatCurrency(value) {
   return new Intl.NumberFormat('ko-KR').format(value || 0) + '원';
 }
 
-function calculateCosts(start, end, scope, vehicle, receipt, receiptIncluded){
-  // compute duration in hours
-  let totalMinutes = 0;
-  if(start instanceof Date && !isNaN(start.getTime()) && end instanceof Date && !isNaN(end.getTime())){
-    totalMinutes = Math.max(0, Math.round((end.getTime() - start.getTime())/60000));
-  }
-  const hours = Math.ceil(totalMinutes/60);
-  // defaults
-  let allowance = 0; // 일비
-  let meal = 0;
-  let receiptCost = receipt || 0;
-
-  if(scope === '관내'){
-    // 관용차
-    if(vehicle === '관용차'){
-      if(hours >= 4) allowance = 10000; else allowance = 0;
-      meal = 0;
-    } else if(vehicle === '자차' || vehicle === '대중교통'){
-      if(hours < 4) allowance = 10000; else allowance = 20000;
-      meal = 0;
-    }
-  } else { // 관외
-    const days = Math.max(1, Math.ceil(hours/24));
-    if(vehicle === '관용차'){
-      allowance = 12500 * days;
-      meal = 25000 * days;
-    } else if(vehicle === '자차' || vehicle === '대중교통'){
-      allowance = 25000 * days;
-      meal = 25000 * days;
-    }
-  }
-
-  const includedReceipt = receiptIncluded ? receiptCost : 0;
-  const total = allowance + meal + includedReceipt;
-  const totalNoReceipt = allowance + meal;
-  return { allowance, meal, receipt: receiptCost, receiptIncluded: !!receiptIncluded, total, totalNoReceipt, hours };
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (s) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[s]));
 }
 
-function readFileAsDataURL(file){
-  return new Promise((res, rej)=>{
-    const fr = new FileReader();
-    fr.onload = ()=> res(fr.result);
-    fr.onerror = rej;
-    fr.readAsDataURL(file);
+function createTravelerRow(data = {}) {
+  const row = document.createElement('div');
+  row.className = 'traveler-row';
+  row.innerHTML = `
+    <button type="button" class="remove-row" title="삭제">✕</button>
+    <label>직책<input type="text" class="t-position" placeholder="예: 사회복지사" /></label>
+    <label>성명<input type="text" class="t-name" placeholder="성명" /></label>
+    <label>출장목적<input type="text" class="t-purpose" placeholder="출장목적" /></label>
+    <label>출장지<input type="text" class="t-destination" placeholder="출장지" /></label>
+    <label>날짜<input type="date" class="t-date" /></label>
+    <label>시작시간<input type="time" class="t-start" /></label>
+    <label>종료시간<input type="time" class="t-end" /></label>
+    <label class="checkbox-inline"><input type="checkbox" class="t-vehicle" /> 관차사용</label>
+  `;
+
+  row.querySelector('.t-position').value = data.position || '';
+  row.querySelector('.t-name').value = data.name || '';
+  row.querySelector('.t-purpose').value = data.purpose || '';
+  row.querySelector('.t-destination').value = data.destination || '';
+  row.querySelector('.t-date').value = data.date || toDateInputValue(new Date());
+  row.querySelector('.t-start').value = data.start || '09:00';
+  row.querySelector('.t-end').value = data.end || '18:00';
+  row.querySelector('.t-vehicle').checked = !!data.vehicle;
+
+  row.querySelector('.remove-row').addEventListener('click', () => {
+    if (travelerList.children.length <= 1) return;
+    row.remove();
+    fillPreview();
   });
+
+  row.querySelectorAll('input').forEach((el) => {
+    const evt = (el.type === 'text') ? 'input' : 'change';
+    el.addEventListener(evt, fillPreview);
+  });
+
+  return row;
 }
 
-async function generatePdfForVisiblePreview(){
+function getTravelers() {
+  return Array.from(travelerList.querySelectorAll('.traveler-row')).map((row) => ({
+    position: row.querySelector('.t-position').value || '-',
+    name: row.querySelector('.t-name').value || '-',
+    purpose: row.querySelector('.t-purpose').value || '-',
+    destination: row.querySelector('.t-destination').value || '-',
+    date: row.querySelector('.t-date').value,
+    start: row.querySelector('.t-start').value,
+    end: row.querySelector('.t-end').value,
+    vehicle: row.querySelector('.t-vehicle').checked,
+  }));
+}
+
+function buildTravelerRowsHtml(travelers) {
+  const cols = 8;
+  const dataRows = travelers.map((t) => `
+    <tr>
+      <td>${escapeHtml(t.position)}</td>
+      <td>${escapeHtml(t.name)}</td>
+      <td>${escapeHtml(t.purpose)}</td>
+      <td>${escapeHtml(t.destination)}</td>
+      <td>${formatDateDot(t.date)} ${escapeHtml(t.start || '')}-${escapeHtml(t.end || '')}</td>
+      <td>${formatDuration(t.start, t.end)}</td>
+      <td>${t.vehicle ? '○' : ''}</td>
+      <td></td>
+    </tr>`).join('');
+  const blankRow = `<tr class="filler-row"><td colspan="${cols}">- 이하 여백 -</td></tr>`;
+  const emptyCount = Math.max(0, TRAVELER_TABLE_MIN_ROWS - travelers.length - 1);
+  const emptyRows = Array.from({ length: emptyCount })
+    .map(() => `<tr>${'<td>&nbsp;</td>'.repeat(cols)}</tr>`)
+    .join('');
+  return dataRows + blankRow + emptyRows;
+}
+
+function fillPreview() {
+  const travelers = getTravelers();
+  const requestDate = document.getElementById('requestDate').value;
+  const reportDate = document.getElementById('reportDate').value;
+  const helper = document.getElementById('helper').value || '-';
+  const etcTransport = document.getElementById('etcTransport').value || '-';
+  const dailyRate = Number(document.getElementById('dailyRate').value) || 0;
+  const transportCost = Number(document.getElementById('transportCost').value) || 0;
+  const lodgingCost = Number(document.getElementById('lodgingCost').value) || 0;
+  const mealCost = Number(document.getElementById('mealCost').value) || 0;
+  const reportContent = document.getElementById('reportContent').value || '-';
+
+  const travelerRowsHtml = buildTravelerRowsHtml(travelers);
+  const dailyTotal = dailyRate * travelers.length;
+  const dailyAllowanceText = dailyTotal > 0
+    ? `${formatCurrency(dailyRate)} * ${travelers.length}명 = ${formatCurrency(dailyTotal)}`
+    : '-';
+
+  document.getElementById('appDate').textContent = formatDateDot(requestDate);
+  document.getElementById('appHelper').textContent = helper;
+  document.getElementById('appTravelerRows').innerHTML = travelerRowsHtml;
+  document.getElementById('appTransportPreview').textContent = etcTransport;
+  document.getElementById('appTransportCostPreview').textContent = transportCost > 0 ? formatCurrency(transportCost) : '-';
+  document.getElementById('appLodgingCostPreview').textContent = lodgingCost > 0 ? formatCurrency(lodgingCost) : '-';
+  document.getElementById('appMealCostPreview').textContent = mealCost > 0 ? formatCurrency(mealCost) : '-';
+  document.getElementById('appDailyAllowancePreview').textContent = dailyAllowanceText;
+
+  document.getElementById('repDate').textContent = formatDateDot(reportDate || requestDate);
+  document.getElementById('repHelper').textContent = helper;
+  document.getElementById('repTravelerRows').innerHTML = travelerRowsHtml;
+  document.getElementById('repTransportPreview').textContent = etcTransport;
+  document.getElementById('repTransportCostPreview').textContent = transportCost > 0 ? formatCurrency(transportCost) : '-';
+  document.getElementById('repLodgingCostPreview').textContent = lodgingCost > 0 ? formatCurrency(lodgingCost) : '-';
+  document.getElementById('repMealCostPreview').textContent = mealCost > 0 ? formatCurrency(mealCost) : '-';
+  document.getElementById('repDailyAllowancePreview').textContent = dailyAllowanceText;
+  document.getElementById('repContentPreview').textContent = reportContent;
+}
+
+async function generatePdfForVisiblePreview() {
   const previewApp = document.getElementById('previewApplication');
   const previewRep = document.getElementById('previewReport');
   const target = previewApp.classList.contains('hidden') ? previewRep : previewApp;
 
-  try{
-    const canvas = await html2canvas(target, {scale:2, useCORS:true});
+  try {
+    const canvas = await html2canvas(target, { scale: 2, useCORS: true });
     const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p','pt','a4');
+    const pdf = new jsPDF('p', 'pt', 'a4');
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = pdf.internal.pageSize.getHeight();
-    const imgW = canvas.width;
-    const imgH = canvas.height;
-    const ratio = Math.min(pdfW / imgW, pdfH / imgH);
-    const drawW = imgW * ratio;
-    const drawH = imgH * ratio;
-    pdf.addImage(imgData, 'PNG', 0, 0, drawW, drawH);
-
-    // Per user request, uploaded signature and photos are NOT embedded into the PDF here.
-
+    const ratio = Math.min(pdfW / canvas.width, pdfH / canvas.height);
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width * ratio, canvas.height * ratio);
     pdf.save('출장_양식.pdf');
-  }catch(err){
+  } catch (err) {
     console.error(err);
     alert('PDF 생성 중 오류가 발생했습니다. 콘솔을 확인하세요.');
   }
 }
 
-// wire UI
-document.addEventListener('DOMContentLoaded', ()=>{
-  setDefaultTimes();
+function resetForm() {
+  document.getElementById('requestDate').value = toDateInputValue(new Date());
+  document.getElementById('reportDate').value = '';
+  document.getElementById('helper').value = '';
+  document.getElementById('etcTransport').value = '센터 차량';
+  document.getElementById('dailyRate').value = 10000;
+  document.getElementById('transportCost').value = 0;
+  document.getElementById('lodgingCost').value = 0;
+  document.getElementById('mealCost').value = 0;
+  document.getElementById('reportContent').value = '';
+  travelerList.innerHTML = '';
+  travelerList.appendChild(createTravelerRow());
+  fillPreview();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('requestDate').value = toDateInputValue(new Date());
+  travelerList.appendChild(createTravelerRow());
   fillPreview();
 
-  form.addEventListener('submit', (e)=>{ e.preventDefault(); fillPreview(); });
-  resetBtn.addEventListener('click', ()=>{ form.reset(); setDefaultTimes(); fillPreview(); });
-  // update preview when key inputs change
-  const scopeEl = document.getElementById('tripScope');
-  const vehicleEl = document.getElementById('vehicleType');
-  const receiptEl = document.getElementById('receiptAmount');
-  if(scopeEl) scopeEl.addEventListener('change', fillPreview);
-  if(vehicleEl) vehicleEl.addEventListener('change', fillPreview);
-  if(receiptEl) receiptEl.addEventListener('input', fillPreview);
-  if(startInput) startInput.addEventListener('change', fillPreview);
-  if(endInput) endInput.addEventListener('change', fillPreview);
-  const receiptProvidedEl = document.getElementById('receiptProvided');
-  const parkingEl = document.getElementById('parkingAmount');
-  const tollEl = document.getElementById('tollAmount');
-  if(receiptProvidedEl) receiptProvidedEl.addEventListener('change', fillPreview);
-  if(parkingEl) parkingEl.addEventListener('input', fillPreview);
-  if(tollEl) tollEl.addEventListener('input', fillPreview);
-  if(showAppBtn) showAppBtn.addEventListener('click', ()=>{ document.getElementById('previewApplication').classList.remove('hidden'); document.getElementById('previewReport').classList.add('hidden'); });
-  if(showRepBtn) showRepBtn.addEventListener('click', ()=>{ document.getElementById('previewReport').classList.remove('hidden'); document.getElementById('previewApplication').classList.add('hidden'); });
-  if(generatePdfBtn) generatePdfBtn.addEventListener('click', ()=> generatePdfForVisiblePreview());
-  if(printBtn) printBtn.addEventListener('click', ()=> window.print());
+  form.addEventListener('submit', (e) => { e.preventDefault(); fillPreview(); });
+  resetBtn.addEventListener('click', resetForm);
+  addTravelerBtn.addEventListener('click', () => {
+    travelerList.appendChild(createTravelerRow());
+    fillPreview();
+  });
+
+  ['requestDate', 'reportDate', 'helper', 'etcTransport', 'dailyRate', 'transportCost', 'lodgingCost', 'mealCost', 'reportContent']
+    .forEach((id) => {
+      const el = document.getElementById(id);
+      const evt = (el.tagName === 'TEXTAREA' || el.type === 'text') ? 'input' : 'change';
+      el.addEventListener(evt, fillPreview);
+    });
+
+  if (showAppBtn) showAppBtn.addEventListener('click', () => { document.getElementById('previewApplication').classList.remove('hidden'); document.getElementById('previewReport').classList.add('hidden'); });
+  if (showRepBtn) showRepBtn.addEventListener('click', () => { document.getElementById('previewReport').classList.remove('hidden'); document.getElementById('previewApplication').classList.add('hidden'); });
+  if (generatePdfBtn) generatePdfBtn.addEventListener('click', () => generatePdfForVisiblePreview());
+  if (printBtn) printBtn.addEventListener('click', () => window.print());
 });

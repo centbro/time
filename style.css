@@ -194,29 +194,6 @@ button.secondary {
   font-size: 14px;
 }
 
-.application-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 8px;
-  padding-bottom: 6px;
-  border-bottom: 2px solid #111;
-  margin-bottom: 12px;
-}
-
-.small-label {
-  margin: 0 0 6px;
-  color: var(--muted);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.application-header h3 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-
 table {
   width: 100%;
   border-collapse: collapse;
@@ -232,7 +209,6 @@ td {
 }
 
 th {
-  width: 16%;
   background: #fff;
   font-weight: 700;
 }
@@ -241,24 +217,79 @@ td {
   background: #fff;
 }
 
-.approval-box {
-  display: flex;
-  justify-content: flex-end;
-  gap: 16px;
-  margin-top: 18px;
+/* 신청서/복명서 상단 제목 + 결재란 */
+.header-table {
+  margin-bottom: 12px;
 }
 
-.approval-item {
+.header-table td {
+  border: 2px solid #111;
   text-align: center;
-  padding-top: 10px;
-  border-top: 1px solid #111;
+}
+
+.title-cell {
+  width: 55%;
+  padding: 22px 10px;
+}
+
+.spaced-title {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 0.4em;
+  text-indent: 0.4em;
+}
+
+.approval-label {
+  width: 10%;
+  font-weight: 700;
+}
+
+.approval-role {
+  width: 17.5%;
+  font-weight: 700;
+  padding: 6px;
+}
+
+.sign-cell {
+  height: 44px;
+}
+
+/* 신청일/협조자, 보고일/협조자 */
+.meta-table th {
+  width: 14%;
+}
+
+.meta-table td {
+  width: 36%;
+  text-align: center;
+}
+
+.statement {
+  margin: 12px 2px;
+  font-size: 0.95rem;
+}
+
+/* 출장자 목록 표 */
+.traveler-table th,
+.traveler-table td {
+  text-align: center;
+  font-size: 13px;
+  padding: 8px 6px;
+}
+
+.traveler-table .filler-row td {
   color: var(--muted);
 }
 
-.approval-item strong {
-  color: var(--text);
-  font-size: 1.1rem;
-  letter-spacing: 0.08em;
+/* 비용표 */
+.cost-table th,
+.cost-table td {
+  width: 25%;
+  text-align: center;
+}
+
+.content-area p {
+  margin: 8px 0 0;
 }
 
 @media (max-width: 800px) {
@@ -267,14 +298,13 @@ td {
   }
 
   .two-col,
-  .summary-grid,
-  .approval-box {
+  .summary-grid {
     grid-template-columns: 1fr;
   }
 
-  .application-header {
-    flex-direction: column;
-    align-items: flex-start;
+  .header-table td {
+    display: block;
+    width: 100% !important;
   }
 }
 
@@ -334,4 +364,62 @@ footer { margin-top:12px; color:#666 }
   .cost-row{flex-direction:column}
   header{flex-direction:column;align-items:flex-start}
 }
+
+.hidden {
+  display: none !important;
+}
+
+.section-title {
+  margin: 20px 0 10px;
+  font-size: 1rem;
+}
+
+.traveler-input-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.traveler-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 14px;
+  padding: 16px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f9fbff;
+}
+
+.traveler-row label {
+  font-size: 0.85rem;
+  gap: 4px;
+}
+
+.checkbox-inline {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px !important;
+  align-self: end;
+}
+
+.checkbox-inline input {
+  width: auto;
+}
+
+.remove-row {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  background: #fde8e8;
+  color: #c0392b;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+@media (max-width: 800px) {
+  .traveler-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
